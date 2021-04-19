@@ -1,7 +1,11 @@
 import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
+from ppadb.client import Client as AdbClient
 import datetime as date
+
+
+adb = None
 
 
 def create_year_dropdown(window):
@@ -55,11 +59,22 @@ def create_month_dropdown(window):
     return monthchoosen
 
 
+def get_files(path):
+    ls = adb.shell('ls -p '+ path +' 2>&1 | grep -v "Permission denied"')
+    for listing in str.splitlines(ls):
+        if str.endswith(listing, '/'):
+            print(path+listing)
+            get_files(path+listing)
+
+
 def backup(year, month):
     if year == '' or month == '':
-        alert()
+        alert("Bitte Jahr und Monat auswählen")
         return
-    print(year + month)
+    global adb
+    adb = connect()
+
+    get_files("/sdcard/")
 
 
 def create_button(window, year, month):
@@ -73,8 +88,21 @@ def create_button(window, year, month):
     btn.grid(column=1, row=6)
 
 
-def alert():
-    messagebox.showwarning(title="Problem", message="Bitte Jahr und Monat auswählen")
+def alert(msg):
+    messagebox.showwarning(title="Problem", message=msg)
+
+
+def connect():
+    client = AdbClient(host="127.0.0.1", port=5037)
+
+    devices = client.devices()
+
+    device = devices[0]
+
+    if len(devices) == 0:
+        alert("Gerät nicht gefunden.")
+        return
+    return device
 
 
 def main():
