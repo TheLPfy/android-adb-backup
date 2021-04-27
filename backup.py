@@ -177,6 +177,8 @@ def connect():
 
 
 def main():
+    os.system("adb devices")
+
     # Creating tkinter window
     window = tk.Tk()
     window.title('@Tobias Etzenberger')
@@ -184,8 +186,11 @@ def main():
 
     # label text for title
     ttk.Label(window, text="Android Backup",
-              background='green', foreground="white",
               font=("Times New Roman", 15)).grid(row=0, column=1)
+    ttk.Label(window, text="Der Vorgang kann einige Zeit in Anspruch nehmen.").grid(row=7, column=1)
+    ttk.Label(window,
+              text="Bitte bis zu einem Popup Fenster warten ;)").grid(
+        row=8, column=1)
 
     # Combobox years
     yearD = create_year_dropdown(window)
