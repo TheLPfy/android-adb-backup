@@ -7,6 +7,8 @@ import datetime as date
 from os import mkdir
 from os import path
 import ntpath
+import platform
+import subprocess
 
 # if storePath is empty current dir is used
 storePath = ""
@@ -14,6 +16,21 @@ adb = None
 download_list = []
 keyword = ""
 
+
+def clean_folder(folder):
+    for filename in os.listdir(folder):
+        filename = os.path.join(folder, filename)
+        if os.path.getsize(filename) == 0:
+            os.remove(filename)
+
+
+def open_file(path):
+    if platform.system() == "Windows":
+        os.startfile(path)
+    elif platform.system() == "Darwin":
+        subprocess.Popen(["open", path])
+    else:
+        subprocess.Popen(["xdg-open", path])
 
 def create_folder(foldername):
     global storePath
@@ -124,7 +141,11 @@ def backup(year, month):
 
     download_files()
 
+    clean_folder(storePath)
+
     messagebox.showwarning(title="Fertig", message="Die Dateien wurden heruntergeladen")
+
+    open_file(storePath)
 
 
 def create_button(window, year, month):
