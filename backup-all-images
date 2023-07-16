@@ -1,0 +1,70 @@
+import os
+from ppadb.client import Client as AdbClient
+import sys
+from yaspin import yaspin
+from datetime import datetime
+
+
+def get_files(adb):
+    with yaspin(text="Loading...", color="yellow", timer=True) as spinner:
+        spinner.text = "Retrieving files..."
+        # find should be available on all phones
+        # /sdcard is the internal storage
+        # type f includes only files
+        # \( \) is used to define multiple arguments and -name searches for spefic file endings (NOT REGEX!) and -o means OR
+        # 2>&1 redirects the error and the these lines with "Permission denied are filtered out"
+        images = adb.shell(
+            'find /sdcard/ -type f \( -name "*.jpg" -o -name "*.png" \) 2>&1 | grep -v "Permission denied"')
+        # All images are seperated by a \n
+        images = images.splitlines()
+        spinner.write("> " + str(len(images)) + " files retrieved")
+        spinner.text = "Getting modification date..."
+        mod_unix = adb.shell(
+            'find /sdcard/ -type f \( -name "*.jpg" -o -name "*.png" \) -exec stat -c %Y {} + 2>&1 | grep -v "Permission denied"')
+        mod_unix = mod_unix.splitlines()
+        # TODO provide unsplitted images text as input
+        spinner.write("> " + str(len(mod_unix)) + " stats gathered")
+        spinner.text = "Getting files"
+        spinner.ok("✔")
+    return dict(zip(images, mod_unix))
+
+
+def download_files(path, images, adb):
+    with yaspin(text="Pulling files...", color="yellow", timer=True) as spinner:
+        for image, unix in images.items():
+            folder = datetime.utcfromtimestamp(int(unix)).strftime('%Y/%m')
+            image_name = os.path.basename(image)
+            dest = os.path.join(path, folder, image_name)
+            spinner.write("> Pulling file " + str(image) + " to " + dest)
+            adb.pull(image, dest)
+            spinner.ok("✔")
+
+
+def adb_connect():
+    os.system("adb devices")
+
+    client = AdbClient(host="127.0.0.1", port=5037)
+
+    devices = client.devices()
+
+    try:
+        device = devices[0]
+        return device
+    except:
+        print(f"Device not found.\n{devices}")
+        return None
+
+
+def main():
+    adb = adb_connect()
+
+    if adb is None:
+        sys.exit("ADB failure")
+
+    images = get_files(adb=adb)
+
+    download_files(path=os.getcwd(), images=images, adb=adb)
+
+
+if __name__ == '__main__':
+    main()
