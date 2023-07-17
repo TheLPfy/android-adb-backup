@@ -4,6 +4,14 @@ import sys
 from yaspin import yaspin
 from datetime import datetime
 
+def read_adb_file_lines(file, adb):
+    dest = os.path.join(os.getcwd(), os.path.basename(file))
+    adb.pull(file, dest)
+    with open(dest) as file:
+        lines = [line.rstrip() for line in file]
+    return lines
+
+
 
 def get_files(adb):
     with yaspin(text="Loading...", color="yellow", timer=True) as spinner:
@@ -13,20 +21,28 @@ def get_files(adb):
         # type f includes only files
         # \( \) is used to define multiple arguments and -name searches for spefic file endings (NOT REGEX!) and -o means OR
         # 2>&1 redirects the error and the these lines with "Permission denied are filtered out"
-        images = adb.shell(
-            'find /sdcard/ -type f \( -name "*.jpg" -o -name "*.png" \) 2>&1 | grep -v "Permission denied"')
+        adb.shell(
+            'find /sdcard/ -type f \( -name "*.jpg" -o -name "*.png" -o -name "*.mp4" -o -name "*.m4a" \) 2>&1 | grep -v "Permission denied" > /sdcard/backup_images.out')
         # All images are seperated by a \n
-        images = images.splitlines()
+        images = read_adb_file_lines("/sdcard/backup_images.out", adb)
         spinner.write("> " + str(len(images)) + " files retrieved")
         spinner.text = "Getting modification date..."
-        mod_unix = adb.shell(
-            'find /sdcard/ -type f \( -name "*.jpg" -o -name "*.png" \) -exec stat -c %Y {} + 2>&1 | grep -v "Permission denied"')
-        mod_unix = mod_unix.splitlines()
-        # TODO provide unsplitted images text as input
+        adb.shell(
+            'tr "\n" "\0" </sdcard/backup_images.out | xargs -0 stat -c %Y > /sdcard/backup_unix.out')
+        mod_unix = read_adb_file_lines("/sdcard/backup_unix.out", adb)
         spinner.write("> " + str(len(mod_unix)) + " stats gathered")
+        if len(images) != len(mod_unix):
+            sys.exit("files and stats do not match!")
         spinner.text = "Getting files"
         spinner.ok("✔")
     return dict(zip(images, mod_unix))
+
+
+def check_file_exists(path):
+    if not os.path.isfile(path):
+        return False
+    # Check if file has data
+    return os.path.getsize(path) != 0
 
 
 def download_files(path, images, adb):
@@ -35,9 +51,13 @@ def download_files(path, images, adb):
             folder = datetime.utcfromtimestamp(int(unix)).strftime('%Y/%m')
             image_name = os.path.basename(image)
             dest = os.path.join(path, folder, image_name)
+            if check_file_exists(dest):
+                spinner.write("> Skipping file " + str(image) + " already in " + dest)
+                continue
             spinner.write("> Pulling file " + str(image) + " to " + dest)
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
             adb.pull(image, dest)
-            spinner.ok("✔")
+        spinner.ok("✔")
 
 
 def adb_connect():
@@ -61,9 +81,9 @@ def main():
     if adb is None:
         sys.exit("ADB failure")
 
-    images = get_files(adb=adb)
+    images_unix_dict = get_files(adb=adb)
 
-    download_files(path=os.getcwd(), images=images, adb=adb)
+    download_files(path=os.getcwd(), images=images_unix_dict, adb=adb)
 
 
 if __name__ == '__main__':
