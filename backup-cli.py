@@ -22,7 +22,7 @@ def get_files(adb):
         # \( \) is used to define multiple arguments and -name searches for spefic file endings (NOT REGEX!) and -o means OR
         # 2>&1 redirects the error and the these lines with "Permission denied are filtered out"
         adb.shell(
-            'find /sdcard/ -type f \( -name "*.jpg" -o -name "*.png" -o -name "*.mp4" -o -name "*.m4a" \) 2>&1 | grep -v "Permission denied" > /sdcard/backup_images.out')
+            'find /sdcard/ -type f \( -name "*.jpg" -o -name "*.png" -o -name "*.mp4" -o -name "*.m4a" \) -not -path "/sdcard/Android/*" 2>&1 | grep -v "Permission denied" > /sdcard/backup_images.out')
         # All images are seperated by a \n
         images = read_adb_file_lines("/sdcard/backup_images.out", adb)
         spinner.write("> " + str(len(images)) + " files retrieved")
