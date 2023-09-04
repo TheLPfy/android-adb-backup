@@ -9,7 +9,8 @@ def read_adb_file_lines(file, adb):
     adb.pull(file, dest)
     with open(dest) as file:
         lines = [line.rstrip() for line in file]
-    os.remove(dest)
+    if check_file_exists(dest):
+        os.remove(dest)
     return lines
 
 
@@ -22,14 +23,14 @@ def get_files(adb):
         # type f includes only files
         # \( \) is used to define multiple arguments and -name searches for spefic file endings (NOT REGEX!) and -o means OR
         # 2>&1 redirects the error and the these lines with "Permission denied are filtered out"
-        adb.shell('rm /sdcard/backup_images.out')
+        adb.shell('rm -f /sdcard/backup_images.out')
         adb.shell('find /sdcard/ -type f \( -name "*.jpg" -o -name "*.png" -o -name "*.mp4" -o -name "*.m4a" \) -not -path "/sdcard/Android/*" 2>&1 | grep -v "Permission denied" > /sdcard/backup_images.out')
         # All images are seperated by a \n
         images = read_adb_file_lines("/sdcard/backup_images.out", adb)
         spinner.write("> " + str(len(images)) + " files retrieved")
         spinner.text = "Getting modification date..."
-        adb.shell('rm /sdcard/backup_unix.out')
-        adb.shell('tr "\n" "\0" </sdcard/backup_images.out | xargs -0 stat -c %Y > /sdcard/backup_unix.out')
+        adb.shell('rm -f /sdcard/backup_unix.out')
+        adb.shell('tr "\n" "\0" < /sdcard/backup_images.out | xargs -0 stat -c %Y > /sdcard/backup_unix.out')
         mod_unix = read_adb_file_lines("/sdcard/backup_unix.out", adb)
         spinner.write("> " + str(len(mod_unix)) + " stats gathered")
         if len(images) != len(mod_unix):
