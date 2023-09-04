@@ -30,7 +30,8 @@ def get_files(adb):
         spinner.write("> " + str(len(images)) + " files retrieved")
         spinner.text = "Getting modification date..."
         adb.shell('rm -f /sdcard/backup_unix.out')
-        adb.shell('tr "\n" "\0" < /sdcard/backup_images.out | xargs -0 stat -c %Y > /sdcard/backup_unix.out')
+        adb.shell('find /sdcard/ -type f \( -name "*.jpg" -o -name "*.png" -o -name "*.mp4" -o -name "*.m4a" \) -not -path "/sdcard/Android/*" 2>&1 -exec stat -c %Y {} \; | grep -v "Permission denied" > /sdcard/backup_unix.out')
+        #adb.shell('tr "\n" "\0" < /sdcard/backup_images.out | xargs -0 stat -c %Y > /sdcard/backup_unix.out')
         mod_unix = read_adb_file_lines("/sdcard/backup_unix.out", adb)
         spinner.write("> " + str(len(mod_unix)) + " stats gathered")
         if len(images) != len(mod_unix):
